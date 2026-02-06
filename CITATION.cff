@@ -1,7 +1,37 @@
 cff-version: 1.2.0
-title: AlgaeScan
-message: If you use this software, please cite it.
+title: "Machine learning-driven identification of microalgae based on full spectral flow cytometry"
+message: "If you use this software, please cite the associated manuscript."
+type: software
+status: unpublished
+
 authors:
+  - family-names: Bebes
+    given-names: Attila
   - family-names: Montante
     given-names: Sebastiano
+  - family-names: Keles
+    given-names: Elif
+  - family-names: Gachenot
+    given-names: Martin
+  - family-names: Vere
+    given-names: George
+  - family-names: Ciceron
+    given-names: Felix
+  - family-names: Monier
+    given-names: Adam
+  - family-names: Probert
+    given-names: Ian
+  - family-names: Allen
+    given-names: Michael J.
+  - family-names: Yılmaz
+    given-names: Burcu
+  - family-names: Yuecel
+    given-names: Raif
+
 repository-code: https://github.com/exeter-cytomics/AlgaeScan
+keywords:
+  - flow cytometry
+  - spectral flow cytometry
+  - microalgae
+  - phytoplankton
+  - machine learning
