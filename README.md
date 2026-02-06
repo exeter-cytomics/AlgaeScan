@@ -5,6 +5,14 @@
 
 # Introduction
 
+Welcome to the AlgaeScan github repository! 
+
+![Project Logo](https://github.com/semontante/flowMagic/raw/main/intro_img/logo_flowmagic.png) 
+![License](https://img.shields.io/github/license/exeter-cytomics/AlgaeScan) 
+![Issues](https://img.shields.io/github/issues/exeter-cytomics/AlgaeScan)
+[![PDF](https://img.shields.io/badge/AlgaeScan_manual-PDF-red)](https://github.com/semontante/flowMagic/blob/main/pk_manual/AlgaeScan_manual.pdf)
+[![PDF](https://img.shields.io/badge/AlgaeScan_vignette-PDF-red)](https://github.com/semontante/flowMagic/blob/main/pk_manual/AlgaeScan_vignette.pdf)
+
 Algae species represent crucial indicators of ecosystem health and integrity, as they form the 
 foundation of most aquatic food chains. Nearly all aquatic animals rely on these primary producers. 
 In addition, the composition and abundance of algae species provide insights into water quality, 
