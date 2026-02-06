@@ -7,7 +7,7 @@
 
 Welcome to the AlgaeScan github repository! 
 
-![Project Logo](https://github.com/semontante/flowMagic/raw/main/intro_img/logo_tool.png) 
+![Project Logo](https://github.com/semontante/AlgaeScan/raw/main/intro_img/logo_tool.png) 
 ![License](https://img.shields.io/github/license/exeter-cytomics/AlgaeScan) 
 ![Issues](https://img.shields.io/github/issues/exeter-cytomics/AlgaeScan)
 [![PDF](https://img.shields.io/badge/AlgaeScan_manual-PDF-red)](https://github.com/semontante/flowMagic/blob/main/pk_manual/AlgaeScan_manual.pdf)
