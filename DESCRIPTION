@@ -1,0 +1,35 @@
+Package: AlgaeScan
+Type: Package
+Title: Machine Learning Analysis of Spectral Flow Cytometry Data
+Version: 0.1.0
+Authors@R: 
+    person(
+        given = "Sebastiano",
+        family = "Montante",
+        role = c("aut", "cre"),
+        email = "s.montante@exeter.ac.uk"
+    )
+Description: Provides tools for importing, processing, analysing, training,
+    and applying machine learning models to spectral flow cytometry data
+    for phytoplankton classification. AlgaeScan supports customizable
+    workflows for algae detection, taxonomic classification, dimensionality
+    reduction, model evaluation, and prediction on new samples.
+License: MIT + file LICENSE
+Encoding: UTF-8
+LazyData: true
+Roxygen: list(markdown = TRUE)
+Imports:
+    data.table,
+    caret,
+    doParallel,
+    foreach,
+    randomForest,
+    MLmetrics,
+    ggplot2,
+    stringr,
+    nnet,
+    naivebayes,
+    e1071,
+    mclust,
+    reticulate
+Config/roxygen2/version: 8.1.0

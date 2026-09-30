@@ -1,160 +1,337 @@
-# function to combine all original csv data in one file
-get_all_data_csv<-function(paths_data){
-  list_all_dfs<-list()
-  for(p in paths_data){
-    print("reading...")
-    print(p)
-    data_x<-fread(file = p)
-    splitted_seq<-strsplit(p,"/")[[1]]
-    name_data<-tail(splitted_seq,1)
-    data_x$measure<-rep(name_data,nrow(data_x))
-    if(grepl("na|non_algae", name_data)){
-      data_x$type<-rep("non-algae",nrow(data_x))
-    }else{
-      data_x$type<-rep("algae",nrow(data_x))
-    }
-    list_all_dfs[[name_data]]<-data_x
-  }
-  df_final<-do.call(rbind,list_all_dfs)
-  return(df_final)
-}
-
-
-# function to add classes info
-add_class_info<-function(df,df_info){
-  all_species<-unique(df$Species)
-  df$Class<-rep("NA",nrow(df))
-  for(s in all_species){
-    print(s)
-    class_current_s<-unique(df_info$Class[df_info$Species==s])
-    print(class_current_s)
-    if(length(class_current_s)>1){
-      stop("more than one class for species, probable error")
-    }else if(length(class_current_s)==0){
-      class_current_s<-"NA"
-    }
-    inds<-which(df$Species==s)
-    df$Class[inds]<-class_current_s
-  }
-  return(df)
-}
-
-# function to get train data and test for all species
-
-partition_data<-function(df_tot){
-  all_species<-unique(df_tot$Species)
-  list_train_dfs<-list()
-  list_test_dfs<-list()
-  for(s in all_species){
-    print(s)
-    df_tot_species_s<-df_tot[df_tot$Species==s]
-    set.seed(123)
-    index_train<-createDataPartition(df_tot_species_s$Species, p = 0.8, list = T)
-    index_train<-index_train$Resample1
-    df_tot_species_s_train<-df_tot_species_s[index_train,]
-    df_tot_species_s_test<-df_tot_species_s[-index_train,]
-    list_train_dfs[[s]]<-df_tot_species_s_train
-    list_test_dfs[[s]]<-df_tot_species_s_test
-  }
-  print("combining dfs...")
-  df_test<-do.call(rbind,list_test_dfs)
-  df_train<-do.call(rbind,list_train_dfs)
+#' Collect repeated cross-validation results
+#'
+#' Combines repeated cross-validation results from multiple
+#' `AlgaeScan_model` objects into a single long-format table.
+#'
+#' The function supports both supervised and unsupervised AlgaeScan
+#' models. For supervised models, the cross-validation score is taken
+#' from `best_accuracy`. For unsupervised models, it is taken from
+#' `best_score`.
+#'
+#' Model names are taken from the names of the input list.
+#'
+#' @param models Named list of `AlgaeScan_model` objects containing
+#'   `repetition_results`.
+#'
+#' @return A `data.table` containing:
+#'
+#' \itemize{
+#'   \item `model`: model name taken from `names(models)`.
+#'   \item `repetition`: training repetition number.
+#'   \item `score`: best validation score for that repetition.
+#'   \item `score_metric`: validation metric used by the model.
+#' }
+#'
+#' @examples
+#' \dontrun{
+#'
+#' cv_results <- AlgaeScan_collect_cv(
+#'   list(
+#'     RF = model_rf,
+#'     KNN = model_knn,
+#'     IF = model_if
+#'   )
+#' )
+#'
+#' }
+#'
+#' @export
+AlgaeScan_collect_cv <- function(
+    models
+) {
   
-  return(list(df_test=df_test,df_train=df_train))
+  # ============================================================
+  # 1. Check input
+  # ============================================================
   
-}
-
-# function to perform downsample based on variable
-get_downsample<-function(df,var="Species",n_samples=1000){
-  all_unique_val<-unique(unlist(df[,..var]))
-  list_all_dfs<-list()
-  for(val in all_unique_val){
-    print(val)
-    inds_val<-which(df[,..var]==val)
-    df_val<-df[inds_val,]
-    if(n_samples>nrow(df_val)){
-      n_sample<-nrow(df_val)
-    }
-    if(nrow(df_val)<n_samples){
-      n_samples<-nrow(df_val)
-    }
-    inds_val_down<-sample.int(n=nrow(df_val),size = n_samples)
-    df_val_down<-df_val[inds_val_down,]
-    list_all_dfs[[val]]<-df_val_down
-  }
-  df_final<-do.call(rbind,list_all_dfs)
-  return(df_final)
-}
-
-# function to get best models across all simulations
-get_best_model<-function(list_models){
-  # get max acc values across models (including nested models) 
-  vec_max_values<-c()
-  vec_max_values_name<-c()
-  for(i in 1:length(list_models)){
-    print(i)
-    m<-list_models[[i]]
-    if(class(m)=="list"){
-      vec_max_i<-sapply(m,function(m_i){
-        max_acc_m_i<-max(m_i$results$Accuracy)
-        return(max_acc_m_i)
-      })
-      max_across_ma_i<-max(vec_max_i)
-      vec_max_values<-c(vec_max_values,max_across_ma_i)
-    }else if(class(m)=="train"){
-      max_acc_m<-max(m$results$Accuracy)
-      vec_max_values<-c(vec_max_values,max_acc_m)
-    }
-    vec_max_values_name<-c(vec_max_values_name,sprintf("cross_val_rep_%d",i))
+  if (!is.list(models)) {
     
+    stop(
+      "`models` must be a named list of AlgaeScan models."
+    )
   }
-  names(vec_max_values)<-vec_max_values_name
-  # get best model based on max accuracy values
-  best_model<-list_models[[which.max(vec_max_values)]]
-  if(class(best_model)=="list"){
-    vec_max_i<-sapply(best_model,function(m_i){
-      max_acc_m_i<-max(m_i$results$Accuracy)
-      return(max_acc_m_i)
-    })
-    best_model<-best_model[[which.max(vec_max_i)]]
+  
+  
+  if (length(models) == 0) {
     
+    stop(
+      "`models` contains no models."
+    )
   }
-  return(list(best_model=best_model,vec_max_values=vec_max_values))
-}
-
-# function to get best models across all simulations for gmm or other unsupervised approaches
-get_best_model_v2<-function(list_models){
-  # get max acc values across models (including nested models) 
-  vec_max_values<-c()
-  vec_max_values_name<-c()
-  for(i in 1:length(list_models)){
-    print(i)
-    list_i<-list_models[[i]]
-    max_score<-max(list_i$vec_scores)
-    vec_max_values<-c(vec_max_values,max_score)
-    vec_max_values_name<-c(vec_max_values_name,sprintf("cross_val_rep_%d",i))
+  
+  
+  if (
+    is.null(names(models)) ||
+    any(names(models) == "")
+  ) {
+    
+    stop(
+      "`models` must be a named list."
+    )
   }
-  ind<-which.max(vec_max_values)
-  list_model_best<-list_models[[ind]]
-  ind<-which.max(list_model_best$vec_scores)
-  best_model<-list_model_best$model_out[[ind]]
-  names(vec_max_values)<-vec_max_values_name
-  return(list(best_model=best_model,vec_max_values=vec_max_values))
+  
+  
+  # ============================================================
+  # 2. Extract repetition results
+  # ============================================================
+  
+  results <- lapply(
+    names(models),
+    function(model_name) {
+      
+      model <- models[[model_name]]
+      
+      
+      if (is.null(model$repetition_results)) {
+        
+        stop(
+          paste0(
+            "Model `",
+            model_name,
+            "` does not contain `repetition_results`."
+          )
+        )
+      }
+      
+      
+      repetition_results <- data.table::as.data.table(
+        data.table::copy(
+          model$repetition_results
+        )
+      )
+      
+      
+      if (!"repetition" %in% colnames(repetition_results)) {
+        
+        stop(
+          paste0(
+            "Model `",
+            model_name,
+            "` does not contain a `repetition` column."
+          )
+        )
+      }
+      
+      
+      # --------------------------------------------------------
+      # Determine score column and metric
+      # --------------------------------------------------------
+      
+      if ("best_accuracy" %in% colnames(repetition_results)) {
+        
+        score <- repetition_results$best_accuracy
+        
+        score_metric <- rep(
+          "Accuracy",
+          nrow(repetition_results)
+        )
+        
+      } else if ("best_score" %in% colnames(repetition_results)) {
+        
+        score <- repetition_results$best_score
+        
+        
+        if ("score_metric" %in% colnames(repetition_results)) {
+          
+          score_metric <- as.character(
+            repetition_results$score_metric
+          )
+          
+        } else if (!is.null(model$score_metric)) {
+          
+          score_metric <- rep(
+            model$score_metric,
+            nrow(repetition_results)
+          )
+          
+        } else {
+          
+          score_metric <- rep(
+            "Score",
+            nrow(repetition_results)
+          )
+        }
+        
+      } else {
+        
+        stop(
+          paste0(
+            "Model `",
+            model_name,
+            "` contains neither `best_accuracy` nor `best_score`."
+          )
+        )
+      }
+      
+      
+      data.table::data.table(
+        model = model_name,
+        repetition = repetition_results$repetition,
+        score = score,
+        score_metric = score_metric
+      )
+    }
+  )
+  
+  
+  # ============================================================
+  # 3. Combine models
+  # ============================================================
+  
+  results <- data.table::rbindlist(
+    results,
+    use.names = TRUE
+  )
+  
+  
+  return(
+    results
+  )
 }
 
 
-# function to get time in secs from Rprof
-interpret_rprof <- function(profile_path, sampling_interval = 0.02) {
-  # Summarize profile data
-  profile_summary <- summaryRprof(profile_path)
-  
-  # Add calculated time columns
-  profile_summary$by.self$time_sec <- profile_summary$by.self$self.time * sampling_interval
-  profile_summary$by.self$time_min <- profile_summary$by.self$time_sec / 60
-  
-  profile_summary$by.total$time_sec <- profile_summary$by.total$total.time * sampling_interval
-  profile_summary$by.total$time_min <- profile_summary$by.total$time_sec / 60
-  
-  return(profile_summary)
-}
 
+#' Summarize repeated cross-validation scores
+#'
+#' Calculates summary statistics across cross-validation repetitions
+#' for each model.
+#'
+#' The returned statistics include the mean, standard deviation,
+#' minimum and maximum score across repetitions.
+#'
+#' @param data A `data.frame` or `data.table` containing at least
+#'   `model` and `score` columns, such as the output returned by
+#'   [AlgaeScan_collect_cv()].
+#'
+#' @param digits Number of decimal places used to round summary
+#'   statistics. Default is `3`.
+#'
+#' @return A `data.table` containing one row per model with
+#'   `mean_score`, `sd_score`, `min_score` and `max_score`.
+#'
+#' @examples
+#' \dontrun{
+#'
+#' cv_summary <- AlgaeScan_summarize_cv(
+#'   supp4_C_data
+#' )
+#'
+#' }
+#'
+#' @export
+AlgaeScan_summarize_cv <- function(
+    data,
+    digits = 3
+) {
+  
+  # ============================================================
+  # 1. Check input
+  # ============================================================
+  
+  if (!is.data.frame(data)) {
+    
+    stop(
+      "`data` must be a data.frame or data.table."
+    )
+  }
+  
+  
+  required_cols <- c(
+    "model",
+    "score"
+  )
+  
+  
+  missing_cols <- required_cols[
+    !required_cols %in% colnames(data)
+  ]
+  
+  
+  if (length(missing_cols) > 0) {
+    
+    stop(
+      paste0(
+        "Missing required column(s): ",
+        paste(
+          missing_cols,
+          collapse = ", "
+        )
+      )
+    )
+  }
+  
+  
+  if (
+    !is.numeric(digits) ||
+    length(digits) != 1 ||
+    is.na(digits) ||
+    digits < 0 ||
+    digits %% 1 != 0
+  ) {
+    
+    stop(
+      "`digits` must be a single non-negative integer."
+    )
+  }
+  
+  
+  data <- data.table::as.data.table(
+    data.table::copy(data)
+  )
+  
+  
+  # ============================================================
+  # 2. Summarize scores
+  # ============================================================
+  
+  summary_data <- data[
+    ,
+    .(
+      mean_score = mean(
+        score,
+        na.rm = TRUE
+      ),
+      sd_score = stats::sd(
+        score,
+        na.rm = TRUE
+      ),
+      min_score = min(
+        score,
+        na.rm = TRUE
+      ),
+      max_score = max(
+        score,
+        na.rm = TRUE
+      )
+    ),
+    by = model
+  ]
+  
+  
+  # ============================================================
+  # 3. Round output
+  # ============================================================
+  
+  score_cols <- c(
+    "mean_score",
+    "sd_score",
+    "min_score",
+    "max_score"
+  )
+  
+  
+  summary_data[
+    ,
+    (score_cols) := lapply(
+      .SD,
+      round,
+      digits = digits
+    ),
+    .SDcols = score_cols
+  ]
+  
+  
+  return(
+    summary_data
+  )
+}

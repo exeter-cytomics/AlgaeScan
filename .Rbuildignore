@@ -1,0 +1,5 @@
+^\.git$
+^\.gitignore$
+^docs$
+^intro_img$
+^python_pipeline$
